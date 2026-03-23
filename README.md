@@ -1,6 +1,6 @@
 # GudBelly External API Guide
 
-This guide explains how to integrate with the GudBelly External API to access product and category data.
+This guide explains how to integrate with the GudBelly External API to access product and category data, and how to create products using the API key.
 
 ## Base URL
 
@@ -275,6 +275,179 @@ curl -H "x-api-key: YOUR_API_KEY" \
 
 ---
 
+## 5. Create Product API (external — API key)
+
+Creates a **Product** record (and a matching **SKU** when one does not already exist for the same `sku_code`). Intended for **external integrations** authenticated with the  API key.
+
+### Endpoint
+
+| Method | Path |
+|--------|------|
+| `POST` | `/api/v1/createNewProductExternal` |
+
+**Authentication:** API key must match server env `YOUR_API_KEY` (see Headers below).
+
+Replace `{BASE_URL}` with your server origin (e.g. `https://your-host.com`).
+
+### Query parameters
+
+**None.** This operation does not read URL query strings.
+
+### Headers
+
+| Header | Required | Description |
+|--------|----------|-------------|
+| `Content-Type` | **Yes** | Must be `application/json` |
+| `x-api-key` | **Yes** | API key (must match `YOUR_API_KEY`) |
+
+### Request body (JSON)
+
+#### Required fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `product_name` | string | Display name of the product |
+| `sku_code` | string | Unique SKU; must not already exist on another product |
+| `hsn_code` | string | HSN code |
+| `tax_slab` | string | One of: `TAX-00`, `TAX-05`, `TAX-12`, `TAX-18` |
+| `ppu` | number | Price per unit; must be ≥ 0 |
+
+#### Optional fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `product_description` | string | Longer description |
+| `product_category_id` | string | MongoDB ObjectId of a **Category** |
+| `unit_of_measure` | string | `kilograms`, `litres`, or `units` (default: `units`) |
+| `current_stock` | number | Default `0` if omitted |
+| `current_count` | number | Stored if provided |
+| `case_size` | number | Default in schema is `1` if omitted |
+| `ean_code` | string | EAN / barcode |
+| `cogs` | number | Cost of goods sold; default `0` if omitted |
+| `blinkit_sku_code` | string | Saved only if non-empty after trim |
+| `swiggy_sku_code` | string | Saved only if non-empty after trim |
+| `zepto_sku_code` | string | Saved only if non-empty after trim |
+| `amazon_sku_code` | string | Saved only if non-empty after trim |
+| `easyecom_sku_code` | string | Saved only if non-empty after trim |
+| `asin_code` | string | Saved only if non-empty after trim |
+| `image_url` | string | Saved only if non-empty after trim |
+| `image_alt_text` | string | Saved only if non-empty after trim |
+| `additional_images` | string[] | Array of image URLs (only applied if value is an array) |
+
+### Example request
+
+```http
+POST {BASE_URL}/api/v1/createNewProductExternal HTTP/1.1
+Content-Type: application/json
+x-api-key: YOUR_API_KEY
+```
+
+```json
+{
+  "product_name": "Example item",
+  "product_description": "Short description",
+  "product_category_id": "679f98c4eb05c298726ab7cc",
+  "sku_code": "SKU-EXAMPLE-001",
+  "unit_of_measure": "units",
+  "current_stock": 0,
+  "current_count": 0,
+  "hsn_code": "7113",
+  "ean_code": "8901234567890",
+  "tax_slab": "TAX-05",
+  "ppu": 199,
+  "case_size": 1,
+  "cogs": 0,
+  "blinkit_sku_code": "BL-123",
+  "image_url": "https://example.com/image.jpg"
+}
+```
+
+**Minimal body (required fields only)**
+
+```json
+{
+  "product_name": "Example item",
+  "sku_code": "SKU-EXAMPLE-001",
+  "hsn_code": "7113",
+  "tax_slab": "TAX-05",
+  "ppu": 199
+}
+```
+
+### Example responses
+
+#### 200 — Created
+
+```json
+{
+  "success": true,
+  "message": "Successfully created the Product",
+  "timestamp": "2026-02-04T07:40:34.210Z",
+  "data": [
+    {
+      "_id": "67a1b2c3d4e5f6789012345",
+      "product_name": "Example item",
+      "sku_code": "SKU-EXAMPLE-001",
+      "hsn_code": "7113",
+      "tax_slab": "TAX-05",
+      "ppu": 199,
+      "unit_of_measure": "units",
+      "current_stock": 0,
+      "sku_reference_id": "67a1b2c3d4e5f6789012346",
+      "createdAt": "2026-02-04T07:40:34.200Z",
+      "updatedAt": "2026-02-04T07:40:34.200Z"
+    }
+  ]
+}
+```
+
+The first element of `data` is the created product document; other fields may appear depending on what was sent and Mongoose defaults.
+
+#### 400 — Duplicate SKU
+
+```json
+{
+  "success": false,
+  "message": "SKU code \"SKU-EXAMPLE-001\" already exists.",
+  "timestamp": "2026-02-04T07:40:34.210Z",
+  "data": []
+}
+```
+
+#### 401 — Missing or invalid API key
+
+```json
+{
+  "success": false,
+  "message": "API key is required"
+}
+```
+
+or
+
+```json
+{
+  "success": false,
+  "message": "Invalid API key",
+  "timestamp": "2026-02-04T07:40:34.210Z"
+}
+```
+
+#### 500 — Server error
+
+```json
+{
+  "success": false,
+  "message": "Internal server error",
+  "timestamp": "2026-02-04T07:40:34.210Z",
+  "data": []
+}
+```
+
+Validation errors (e.g. invalid `tax_slab` or missing required fields) may also surface as **500** with the generic message, depending on Mongoose error handling.
+
+---
+
 ## Pagination
 
 Endpoints that return lists support pagination through the following response structure:
@@ -324,6 +497,8 @@ Endpoints that return lists support pagination through the following response st
 
 ## Code Examples
 
+Read endpoints below use `YOUR_API_KEY` (external API key). **Create Product** uses `YOUR_API_KEY`, which must match the server’s `API_KEY` (see **Create Product API (external — API key)** above).
+
 ### JavaScript (Node.js with Axios)
 
 ```javascript
@@ -332,6 +507,14 @@ const axios = require('axios');
 const client = axios.create({
   baseURL: 'https://backend.gudbelly.filflo.in/api/v1/external',
   headers: {
+    'x-api-key': 'YOUR_API_KEY'
+  }
+});
+
+const client = axios.create({
+  baseURL: 'https://backend.gudbelly.filflo.in/api/v1',
+  headers: {
+    'Content-Type': 'application/json',
     'x-api-key': 'YOUR_API_KEY'
   }
 });
@@ -363,6 +546,12 @@ async function getProductsByCategory(categoryId, page = 1, limit = 100) {
   });
   return response.data;
 }
+
+// Create product (YOUR API key — not under /external)
+async function createProduct(body) {
+  const response = await client.post('/createNewProductExternal', body);
+  return response.data;
+}
 ```
 
 ### Python (with Requests)
@@ -375,6 +564,11 @@ API_KEY = 'YOUR_API_KEY'
 
 headers = {
     'x-api-key': API_KEY
+}
+
+headers = {
+    'x-api-key': API_KEY,
+    'Content-Type': 'application/json'
 }
 
 # Get all products
@@ -410,6 +604,15 @@ def get_products_by_category(category_id, page=1, limit=100):
         params={'page': page, 'limit': limit}
     )
     return response.json()
+
+# Create product 
+def create_product(body):
+    response = requests.post(
+        f'{BASE_URL}/createNewProductExternal',
+        headers=headers,
+        json=body
+    )
+    return response.json()
 ```
 
 ### cURL
@@ -430,6 +633,13 @@ curl -H "x-api-key: YOUR_API_KEY" \
 # Get products by category
 curl -H "x-api-key: YOUR_API_KEY" \
   "https://backend.gudbelly.filflo.in/api/v1/external/categories/692a7ad9e27f04764e471c77/products"
+
+# Create product 
+curl -X POST \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: YOUR_API_KEY" \
+  -d "{\"product_name\":\"Example item\",\"sku_code\":\"SKU-EXAMPLE-001\",\"hsn_code\":\"7113\",\"tax_slab\":\"TAX-05\",\"ppu\":199}" \
+  "https://backend.gudbelly.filflo.in/api/v1/createNewProductExternal"
 ```
 
 ---
