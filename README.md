@@ -1,6 +1,6 @@
 # GudBelly External API Guide
 
-This guide explains how to integrate with the GudBelly External API to access product and category data, and how to create products using the API key.
+This guide explains how to integrate with the GudBelly External API to access product and category data, create products, and create orders using the API key.
 
 ## Base URL
 
@@ -448,6 +448,103 @@ Validation errors (e.g. invalid `tax_slab` or missing required fields) may also 
 
 ---
 
+## 6. Create order (external)
+
+Creates an order using the same handler as `POST /api/v1/createOrder`; only authentication differs. **No warehouse user JWT is used**, so `created_by` on the order is stored as `null` unless you extend the server to map API keys to users.
+
+**Authentication:** `Content-Type: application/json` and `x-api-key` (same API key pattern as **Create Product API** above). `POST` to your server origin, e.g. `{ORIGIN}/api/v1/createOrderExternal`.
+
+| Item        | Value |
+|------------|--------|
+| **Method** | `POST` |
+| **Path**   | `/api/v1/createOrderExternal` |
+
+### Required body fields
+
+| Field              | Type   | Description |
+|--------------------|--------|-------------|
+| `customerName`     | string | Customer name |
+| `shippingAddress`  | string **or** object | Delivery address. If object: must include `address` (string). Optional: `dropLatitude`, `dropLongitude` (numbers). |
+| `listOfProducts`   | array  | At least one line item (see below). |
+
+### Line item (`listOfProducts[]`)
+
+Each item must identify a product **either** by MongoDB id **or** by SKU:
+
+| Field         | Type   | Required | Description |
+|---------------|--------|----------|-------------|
+| `product_id`  | string | one of   | MongoDB `_id` of the product |
+| `skuCode`     | string | one of   | Product `sku_code` in the catalog |
+| `quantity`    | number | yes      | Ordered quantity |
+| `ppu`         | number | no       | Price per unit for this line; if omitted, product’s `ppu` is used |
+
+### Optional body fields
+
+| Field                   | Type   | Default / notes |
+|-------------------------|--------|------------------|
+| `orderId`               | string | If omitted, server generates next id; must not already exist |
+| `orderType`             | string | `Direct` |
+| `poType`                | string | |
+| `orderReceivedDate`     | string | |
+| `scheduledDispatchDate` | string | |
+| `expectedDeliveryDate`  | string | |
+| `customerEmail`         | string | |
+| `customerPhone`         | string | |
+| `modeOfTransport`       | string | |
+| `vehicleNumber`         | string | |
+| `paymentStatus`         | string | `unpaid` |
+| `paymentMethod`         | string | |
+| `platform`              | string | `Custom` |
+| `shippingPartner`       | string | |
+| `awbNumber`             | string | |
+| `orderPriority`         | string | `Standard` |
+| `appointmentDate`       | string | |
+| `poExpiryDate`          | string | |
+| `documentType`          | string | `invoice` |
+| `remarks`               | string | |
+| `location`              | string | `Gudbelly Warehouse` |
+| `latitude`, `longitude` | number | Sets `currentLocation` when both present |
+| `currentLocation`       | object | `{ "latitude": number, "longitude": number }` |
+| `meta`                  | object | `{}` |
+
+New orders are created with status `pending`.
+
+### Example request
+
+```json
+{
+  "customerName": "Acme Retail",
+  "customerEmail": "orders@acme.example",
+  "customerPhone": "+919999999999",
+  "shippingAddress": {
+    "address": "Plot 12, Industrial Area, Bengaluru 560001",
+    "dropLatitude": 12.97,
+    "dropLongitude": 77.59
+  },
+  "listOfProducts": [
+    { "skuCode": "GB-SKU-001", "quantity": 10, "ppu": 120.5 },
+    { "skuCode": "GB-SKU-002", "quantity": 2 }
+  ],
+  "platform": "External",
+  "paymentStatus": "unpaid"
+}
+```
+
+### Success response
+
+- **Status:** `201`
+- **Body:** `{ "success": true, "message": "Order created successfully.", "data": { ...order document } }`
+
+### Error examples
+
+| Status | When |
+|--------|------|
+| `400`  | Missing `customerName`, invalid/empty `shippingAddress`, empty `listOfProducts`, or duplicate `orderId` |
+| `404`  | A line item’s `skuCode` / `product_id` does not match any product |
+| `500`  | Server error |
+
+---
+
 ## Pagination
 
 Endpoints that return lists support pagination through the following response structure:
@@ -497,21 +594,21 @@ Endpoints that return lists support pagination through the following response st
 
 ## Code Examples
 
-Read endpoints below use `YOUR_API_KEY` (external API key). **Create Product** uses `YOUR_API_KEY`, which must match the server’s `API_KEY` (see **Create Product API (external — API key)** above).
+Read endpoints below use `YOUR_API_KEY` (external API key). **Create Product** and **Create order** use the same key for `POST` to `/api/v1/createNewProductExternal` and `/api/v1/createOrderExternal` (see sections **5** and **6** above).
 
 ### JavaScript (Node.js with Axios)
 
 ```javascript
 const axios = require('axios');
 
-const client = axios.create({
+const externalClient = axios.create({
   baseURL: 'https://backend.gudbelly.filflo.in/api/v1/external',
   headers: {
     'x-api-key': 'YOUR_API_KEY'
   }
 });
 
-const client = axios.create({
+const apiClient = axios.create({
   baseURL: 'https://backend.gudbelly.filflo.in/api/v1',
   headers: {
     'Content-Type': 'application/json',
@@ -521,7 +618,7 @@ const client = axios.create({
 
 // Get all products
 async function getProducts(page = 1, limit = 100) {
-  const response = await client.get('/products', {
+  const response = await externalClient.get('/products', {
     params: { page, limit }
   });
   return response.data;
@@ -529,27 +626,33 @@ async function getProducts(page = 1, limit = 100) {
 
 // Get product by SKU
 async function getProductBySku(sku) {
-  const response = await client.get(`/products/sku/${sku}`);
+  const response = await externalClient.get(`/products/sku/${sku}`);
   return response.data;
 }
 
 // Get all categories
 async function getCategories() {
-  const response = await client.get('/categories');
+  const response = await externalClient.get('/categories');
   return response.data;
 }
 
 // Get products by category
 async function getProductsByCategory(categoryId, page = 1, limit = 100) {
-  const response = await client.get(`/categories/${categoryId}/products`, {
+  const response = await externalClient.get(`/categories/${categoryId}/products`, {
     params: { page, limit }
   });
   return response.data;
 }
 
-// Create product (YOUR API key — not under /external)
+// Create product (API key — not under /external)
 async function createProduct(body) {
-  const response = await client.post('/createNewProductExternal', body);
+  const response = await apiClient.post('/createNewProductExternal', body);
+  return response.data;
+}
+
+// Create order (API key — not under /external)
+async function createOrder(body) {
+  const response = await apiClient.post('/createOrderExternal', body);
   return response.data;
 }
 ```
@@ -559,22 +662,18 @@ async function createProduct(body) {
 ```python
 import requests
 
-BASE_URL = 'https://backend.gudbelly.filflo.in/api/v1/external'
+base_url = 'https://backend.gudbelly.filflo.in/api/v1'
 API_KEY = 'YOUR_API_KEY'
 
 headers = {
-    'x-api-key': API_KEY
-}
-
-headers = {
     'x-api-key': API_KEY,
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
 }
 
 # Get all products
 def get_products(page=1, limit=100):
     response = requests.get(
-        f'{BASE_URL}/products',
+        f'{base_url}/external/products',
         headers=headers,
         params={'page': page, 'limit': limit}
     )
@@ -583,7 +682,7 @@ def get_products(page=1, limit=100):
 # Get product by SKU
 def get_product_by_sku(sku):
     response = requests.get(
-        f'{BASE_URL}/products/sku/{sku}',
+        f'{base_url}/external/products/sku/{sku}',
         headers=headers
     )
     return response.json()
@@ -591,7 +690,7 @@ def get_product_by_sku(sku):
 # Get all categories
 def get_categories():
     response = requests.get(
-        f'{BASE_URL}/categories',
+        f'{base_url}/external/categories',
         headers=headers
     )
     return response.json()
@@ -599,16 +698,25 @@ def get_categories():
 # Get products by category
 def get_products_by_category(category_id, page=1, limit=100):
     response = requests.get(
-        f'{BASE_URL}/categories/{category_id}/products',
+        f'{base_url}/external/categories/{category_id}/products',
         headers=headers,
         params={'page': page, 'limit': limit}
     )
     return response.json()
 
-# Create product 
+# Create product
 def create_product(body):
     response = requests.post(
-        f'{BASE_URL}/createNewProductExternal',
+        f'{base_url}/createNewProductExternal',
+        headers=headers,
+        json=body
+    )
+    return response.json()
+
+# Create order
+def create_order(body):
+    response = requests.post(
+        f'{base_url}/createOrderExternal',
         headers=headers,
         json=body
     )
@@ -634,12 +742,19 @@ curl -H "x-api-key: YOUR_API_KEY" \
 curl -H "x-api-key: YOUR_API_KEY" \
   "https://backend.gudbelly.filflo.in/api/v1/external/categories/692a7ad9e27f04764e471c77/products"
 
-# Create product 
+# Create product
 curl -X POST \
   -H "Content-Type: application/json" \
   -H "x-api-key: YOUR_API_KEY" \
   -d "{\"product_name\":\"Example item\",\"sku_code\":\"SKU-EXAMPLE-001\",\"hsn_code\":\"7113\",\"tax_slab\":\"TAX-05\",\"ppu\":199}" \
   "https://backend.gudbelly.filflo.in/api/v1/createNewProductExternal"
+
+# Create order
+curl -X POST \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: YOUR_API_KEY" \
+  -d "{\"customerName\":\"Acme Retail\",\"shippingAddress\":{\"address\":\"Plot 12, Bengaluru\"},\"listOfProducts\":[{\"skuCode\":\"GB-SKU-001\",\"quantity\":10}]}" \
+  "https://backend.gudbelly.filflo.in/api/v1/createOrderExternal"
 ```
 
 ---
