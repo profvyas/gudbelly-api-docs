@@ -1,6 +1,6 @@
 # GudBelly External API Guide
 
-This guide explains how to integrate with the GudBelly External API to access product and category data, create products, and create orders using the API key.
+This guide explains how to integrate with the GudBelly External API to access product and category data, order live tracking, create products, and create orders using the API key.
 
 ## Base URL
 
@@ -275,9 +275,139 @@ curl -H "x-api-key: YOUR_API_KEY" \
 
 ---
 
-## 5. Create Product API (external — API key)
+### 5. Get live tracking by order
 
-Creates a **Product** record (and a matching **SKU** when one does not already exist for the same `sku_code`). Intended for **external integrations** authenticated with the  API key.
+Returns the **most recent** delivery tracking task for a given business **order id** (same logic as `GET /api/v1/getOrderLiveTracking/:orderId`), authenticated with the API key instead of a rider/admin JWT.
+
+| Item        | Value |
+|------------|--------|
+| **Method** | `GET` |
+| **Path**   | `/api/v1/external/orders/:orderId/live-tracking` |
+
+**Path parameters:**
+
+| Param     | Description |
+|-----------|-------------|
+| `orderId` | The **order’s business id** (same string as `orderId` on the order and on the `DeliveryTracking` document). This is **not** the MongoDB `_id` of the order unless your system uses that as the business id. |
+
+If multiple tracking records exist for the same `orderId`, the server returns the newest by `createdAt`.
+
+**Success response**
+
+- **Status:** `200`
+- **Body:** `{ "success": true, "message": "Order live tracking fetched successfully.", "data": { ...delivery tracking document } }`
+
+**Useful fields on `data`:**
+
+| Field | Notes |
+|-------|--------|
+| `status` | `assigned`, `pickedup`, `in_transit`, or `dropped` |
+| `orderId`, `riderId` | Business order id; assigned rider (populated object below) |
+| `pickupLocation`, `dropLocation` | `{ latitude, longitude, address? }` |
+| `currentLocation` | On the **task**: `{ latitude?, longitude?, recordedAt? }` when live transit updates have been written to this record |
+| `locationHistory` | Array of `{ latitude, longitude, recordedAt }` for the task |
+| `pickedupAt`, `droppedAt`, `assignedAt` | ISO dates when set |
+| `riderId` (populated) | `name`, `phone`, `vehicleNumber`, `isAvailable`, `lastLocationUpdatedAt`, **`currentLocation`** — rider position as GeoJSON: `{ type: "Point", coordinates: [longitude, latitude] }` |
+
+**Example request**
+
+There is no JSON body. Send the business `orderId` in the path and the API key in a header.
+
+```http
+GET /api/v1/external/orders/ORD-2025-00042/live-tracking HTTP/1.1
+Host: backend.gudbelly.filflo.in
+x-api-key: YOUR_API_KEY
+```
+
+```bash
+curl -sS "https://backend.gudbelly.filflo.in/api/v1/external/orders/ORD-2025-00042/live-tracking" \
+  -H "x-api-key: YOUR_API_KEY"
+```
+
+For **Node.js**, use `getOrderLiveTracking` in [Code Examples](#code-examples) → **JavaScript (Node.js with Axios)**. For **Python**, use `get_order_live_tracking` in **Python (requests)** there (same `base_url` and headers as the other snippets).
+
+Replace `ORD-2025-00042` with the real order id. You can use `api-key` or `Authorization` instead of `x-api-key` (see [Authentication](#authentication)).
+
+**Example response (`200`)**
+
+Shape matches a saved `DeliveryTracking` document plus populated `riderId`. Values below are illustrative.
+
+```json
+{
+  "success": true,
+  "message": "Order live tracking fetched successfully.",
+  "data": {
+    "_id": "674a1b2c3d4e5f6789abcdef",
+    "orderId": "ORD-2025-00042",
+    "riderId": {
+      "_id": "674a1b2c3d4e5f6789abc111",
+      "name": "Ravi Kumar",
+      "phone": "+919876543210",
+      "vehicleNumber": "KA01AB1234",
+      "isAvailable": false,
+      "lastLocationUpdatedAt": "2026-03-29T10:15:00.000Z",
+      "currentLocation": {
+        "type": "Point",
+        "coordinates": [77.5946, 12.9716]
+      }
+    },
+    "status": "in_transit",
+    "pickupLocation": {
+      "latitude": 12.98,
+      "longitude": 77.6,
+      "address": "Gudbelly Warehouse"
+    },
+    "dropLocation": {
+      "latitude": 12.95,
+      "longitude": 77.58,
+      "address": "Customer drop address"
+    },
+    "currentLocation": {
+      "latitude": 12.97,
+      "longitude": 77.59,
+      "recordedAt": "2026-03-29T10:14:30.000Z"
+    },
+    "locationHistory": [
+      {
+        "latitude": 12.968,
+        "longitude": 77.592,
+        "recordedAt": "2026-03-29T10:10:00.000Z"
+      }
+    ],
+    "assignedAt": "2026-03-29T09:00:00.000Z",
+    "pickedupAt": "2026-03-29T09:45:00.000Z",
+    "droppedAt": null,
+    "createdAt": "2026-03-29T09:00:00.000Z",
+    "updatedAt": "2026-03-29T10:15:00.000Z",
+    "__v": 0
+  }
+}
+```
+
+`data.currentLocation` / `data.locationHistory` may be empty or omitted until live transit points are recorded on the task. `data.riderId.currentLocation` uses GeoJSON: **`coordinates` are `[longitude, latitude]`**.
+
+**Error examples**
+
+| Status | When |
+|--------|------|
+| `404`  | No `DeliveryTracking` row for that `orderId` |
+| `401`  | Missing or invalid API key |
+| `500`  | Server error |
+
+**Example `404` body**
+
+```json
+{
+  "success": false,
+  "message": "No delivery tracking found for this order."
+}
+```
+
+---
+
+## 6. Create Product API (external — API key)
+
+Creates a **Product** record (and a matching **SKU** when one does not already exist for the same `sku_code`). Intended for **external integrations** authenticated with the API key.
 
 ### Endpoint
 
@@ -285,9 +415,9 @@ Creates a **Product** record (and a matching **SKU** when one does not already e
 |--------|------|
 | `POST` | `/api/v1/createNewProductExternal` |
 
-**Authentication:** API key must match server env `YOUR_API_KEY` (see Headers below).
+**Authentication:** Use your issued external API key (see Headers below; must match what the server expects for these routes).
 
-Replace `{BASE_URL}` with your server origin (e.g. `https://your-host.com`).
+Replace `{base_url}` with your API base through `/api/v1` (e.g. `https://your-host.com/api/v1`), same as the `base_url` variable in the [Code Examples](#code-examples).
 
 ### Query parameters
 
@@ -337,7 +467,7 @@ Replace `{BASE_URL}` with your server origin (e.g. `https://your-host.com`).
 ### Example request
 
 ```http
-POST {BASE_URL}/api/v1/createNewProductExternal HTTP/1.1
+POST {base_url}/createNewProductExternal HTTP/1.1
 Content-Type: application/json
 x-api-key: YOUR_API_KEY
 ```
@@ -448,11 +578,11 @@ Validation errors (e.g. invalid `tax_slab` or missing required fields) may also 
 
 ---
 
-## 6. Create order (external)
+## 7. Create order (external)
 
 Creates an order using the same handler as `POST /api/v1/createOrder`; only authentication differs. **No warehouse user JWT is used**, so `created_by` on the order is stored as `null` unless you extend the server to map API keys to users.
 
-**Authentication:** `Content-Type: application/json` and `x-api-key` (same API key pattern as **Create Product API** above). `POST` to your server origin, e.g. `{ORIGIN}/api/v1/createOrderExternal`.
+**Authentication:** `Content-Type: application/json` and `x-api-key` (same API key pattern as **Create Product API** above). `POST` to `{base_url}/createOrderExternal` (see `{base_url}` under **Create Product API** above).
 
 | Item        | Value |
 |------------|--------|
@@ -594,22 +724,16 @@ Endpoints that return lists support pagination through the following response st
 
 ## Code Examples
 
-Read endpoints below use `YOUR_API_KEY` (external API key). **Create Product** and **Create order** use the same key for `POST` to `/api/v1/createNewProductExternal` and `/api/v1/createOrderExternal` (see sections **5** and **6** above).
+The snippets below share one `base_url`, one API key (`YOUR_API_KEY`), and one HTTP client pattern. They cover **Get live tracking by order** (endpoint **5**, `getOrderLiveTracking` / `get_order_live_tracking`) and the read endpoints **1–4**, plus **Create Product** and **Create order** (`POST` to `createNewProductExternal` and `createOrderExternal`; see sections **6** and **7** above).
 
 ### JavaScript (Node.js with Axios)
 
 ```javascript
 const axios = require('axios');
 
-const externalClient = axios.create({
-  baseURL: 'https://backend.gudbelly.filflo.in/api/v1/external',
-  headers: {
-    'x-api-key': 'YOUR_API_KEY'
-  }
-});
+const base_url = 'https://backend.gudbelly.filflo.in/api/v1';
 
-const apiClient = axios.create({
-  baseURL: 'https://backend.gudbelly.filflo.in/api/v1',
+const client = axios.create({
   headers: {
     'Content-Type': 'application/json',
     'x-api-key': 'YOUR_API_KEY'
@@ -618,7 +742,7 @@ const apiClient = axios.create({
 
 // Get all products
 async function getProducts(page = 1, limit = 100) {
-  const response = await externalClient.get('/products', {
+  const response = await client.get(`${base_url}/external/products`, {
     params: { page, limit }
   });
   return response.data;
@@ -626,33 +750,42 @@ async function getProducts(page = 1, limit = 100) {
 
 // Get product by SKU
 async function getProductBySku(sku) {
-  const response = await externalClient.get(`/products/sku/${sku}`);
+  const response = await client.get(`${base_url}/external/products/sku/${sku}`);
   return response.data;
 }
 
 // Get all categories
 async function getCategories() {
-  const response = await externalClient.get('/categories');
+  const response = await client.get(`${base_url}/external/categories`);
   return response.data;
 }
 
 // Get products by category
 async function getProductsByCategory(categoryId, page = 1, limit = 100) {
-  const response = await externalClient.get(`/categories/${categoryId}/products`, {
-    params: { page, limit }
-  });
+  const response = await client.get(
+    `${base_url}/external/categories/${categoryId}/products`,
+    { params: { page, limit } }
+  );
   return response.data;
 }
 
-// Create product (API key — not under /external)
+// Get live tracking by business order id
+async function getOrderLiveTracking(orderId) {
+  const response = await client.get(
+    `${base_url}/external/orders/${encodeURIComponent(orderId)}/live-tracking`
+  );
+  return response.data;
+}
+
+// Create product
 async function createProduct(body) {
-  const response = await apiClient.post('/createNewProductExternal', body);
+  const response = await client.post(`${base_url}/createNewProductExternal`, body);
   return response.data;
 }
 
-// Create order (API key — not under /external)
+// Create order
 async function createOrder(body) {
-  const response = await apiClient.post('/createOrderExternal', body);
+  const response = await client.post(`${base_url}/createOrderExternal`, body);
   return response.data;
 }
 ```
@@ -661,6 +794,7 @@ async function createOrder(body) {
 
 ```python
 import requests
+from urllib.parse import quote
 
 base_url = 'https://backend.gudbelly.filflo.in/api/v1'
 API_KEY = 'YOUR_API_KEY'
@@ -704,6 +838,14 @@ def get_products_by_category(category_id, page=1, limit=100):
     )
     return response.json()
 
+# Get live tracking by business order id
+def get_order_live_tracking(order_id):
+    response = requests.get(
+        f'{base_url}/external/orders/{quote(order_id, safe="")}/live-tracking',
+        headers=headers,
+    )
+    return response.json()
+
 # Create product
 def create_product(body):
     response = requests.post(
@@ -741,6 +883,10 @@ curl -H "x-api-key: YOUR_API_KEY" \
 # Get products by category
 curl -H "x-api-key: YOUR_API_KEY" \
   "https://backend.gudbelly.filflo.in/api/v1/external/categories/692a7ad9e27f04764e471c77/products"
+
+# Get live tracking by order (replace ORD-2025-00042 with business orderId)
+curl -sS "https://backend.gudbelly.filflo.in/api/v1/external/orders/ORD-2025-00042/live-tracking" \
+  -H "x-api-key: YOUR_API_KEY"
 
 # Create product
 curl -X POST \
