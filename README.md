@@ -1,6 +1,6 @@
 # GudBelly External API Guide
 
-This guide explains how to integrate with the GudBelly External API to access product and category data, order live tracking, create products, and create orders using the API key.
+This guide explains how to integrate with the GudBelly External API to access product and category data, product availability (stock snapshots), order live tracking, and to create products, categories, and orders using the API key.
 
 ## Base URL
 
@@ -405,6 +405,52 @@ Shape matches a saved `DeliveryTracking` document plus populated `riderId`. Valu
 
 ---
 
+### Product availability (stock snapshot)
+
+Returns **active** products with warehouse-oriented fields: `sku_code`, `product_description`, `current_stock`, and computed **`available`** (accounts for rack linkage and open order reservations on the server).
+
+| | |
+|---|---|
+| **Method / path** | `GET /api/v1/external/products/availability` |
+| **Query (optional)** | `sku_code` — filter by one SKU or several (comma-separated), e.g. `?sku_code=SKU-1` or `?sku_code=SKU-1,SKU-2` |
+
+**Example request**
+
+```bash
+curl -H "x-api-key: YOUR_API_KEY" \
+  "https://backend.gudbelly.filflo.in/api/v1/external/products/availability?sku_code=SKU-001,SKU-002"
+```
+
+Omit `sku_code` to return all active products with availability fields.
+
+### Success response — HTTP 200
+
+```json
+{
+  "success": true,
+  "message": "Successfully fetched products with availability",
+  "data": [
+    {
+      "sku_code": "SKU-001",
+      "product_description": "Example item",
+      "current_stock": 100,
+      "available": 85
+    }
+  ]
+}
+```
+
+When no matching active products exist, `data` is an empty array and `message` may be `"No active products found"`.
+
+### Error responses
+
+| Status | When |
+|--------|------|
+| `401` | Missing or invalid API key. |
+| `500` | Server error. |
+
+---
+
 ## 6. Create Product API (external — API key)
 
 Creates a **Product** record (and a matching **SKU** when one does not already exist for the same `sku_code`). Intended for **external integrations** authenticated with the API key.
@@ -675,6 +721,58 @@ New orders are created with status `pending`.
 
 ---
 
+## 8. Create category (external)
+
+Creates a new product category.
+
+**Authentication:** `Content-Type: application/json` and `x-api-key` (same pattern as **Create Product API**). `POST` to `{base_url}/createCategoryExternal` (see `{base_url}` under **Create Product API** above).
+
+| | |
+|---|---|
+| **Method / path** | `POST /api/v1/createCategoryExternal` |
+| **Content-Type** | `application/json` |
+
+### Request body (JSON)
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `category_name` | string | Yes | Name of the category |
+| `category_description` | string | No | Optional description |
+
+### Example request
+
+```json
+{
+  "category_name": "Pantry - Oils",
+  "category_description": "Cooking oils"
+}
+```
+
+### Success response — HTTP 200
+
+```json
+{
+  "success": true,
+  "message": "SuccessFully created the Category",
+  "data": {
+    "_id": "...",
+    "category_name": "...",
+    "category_description": "...",
+    "createdAt": "...",
+    "updatedAt": "..."
+  }
+}
+```
+
+### Error responses
+
+| Status | When |
+|--------|------|
+| `404` | Category could not be created (rare). |
+| `500` | Server error. |
+
+---
+
 ## Pagination
 
 Endpoints that return lists support pagination through the following response structure:
@@ -724,7 +822,7 @@ Endpoints that return lists support pagination through the following response st
 
 ## Code Examples
 
-The snippets below share one `base_url`, one API key (`YOUR_API_KEY`), and one HTTP client pattern. They cover **Get live tracking by order** (endpoint **5**, `getOrderLiveTracking` / `get_order_live_tracking`) and the read endpoints **1–4**, plus **Create Product** and **Create order** (`POST` to `createNewProductExternal` and `createOrderExternal`; see sections **6** and **7** above).
+The snippets below share one `base_url`, one API key (`YOUR_API_KEY`), and one HTTP client pattern. They cover the read endpoints **1–4**, **Product availability** (`getProductsAvailability` / `get_products_availability`), **Get live tracking by order** (endpoint **5**, `getOrderLiveTracking` / `get_order_live_tracking`), plus **Create Product**, **Create order**, and **Create category** (`POST` to `createNewProductExternal`, `createOrderExternal`, and `createCategoryExternal`; see sections **6**, **7**, and **8** above).
 
 ### JavaScript (Node.js with Axios)
 
@@ -751,6 +849,15 @@ async function getProducts(page = 1, limit = 100) {
 // Get product by SKU
 async function getProductBySku(sku) {
   const response = await client.get(`${base_url}/external/products/sku/${sku}`);
+  return response.data;
+}
+
+// Product availability (optional comma-separated sku_code query)
+async function getProductsAvailability(skuCodes) {
+  const params = skuCodes ? { sku_code: skuCodes } : {};
+  const response = await client.get(`${base_url}/external/products/availability`, {
+    params
+  });
   return response.data;
 }
 
@@ -788,6 +895,12 @@ async function createOrder(body) {
   const response = await client.post(`${base_url}/createOrderExternal`, body);
   return response.data;
 }
+
+// Create category
+async function createCategory(body) {
+  const response = await client.post(`${base_url}/createCategoryExternal`, body);
+  return response.data;
+}
 ```
 
 ### Python (with Requests)
@@ -818,6 +931,17 @@ def get_product_by_sku(sku):
     response = requests.get(
         f'{base_url}/external/products/sku/{sku}',
         headers=headers
+    )
+    return response.json()
+
+# Product availability (sku_codes: optional str, e.g. "SKU-1" or "SKU-1,SKU-2")
+def get_products_availability(sku_codes=None):
+    kwargs = {'headers': headers}
+    if sku_codes:
+        kwargs['params'] = {'sku_code': sku_codes}
+    response = requests.get(
+        f'{base_url}/external/products/availability',
+        **kwargs,
     )
     return response.json()
 
@@ -863,6 +987,15 @@ def create_order(body):
         json=body
     )
     return response.json()
+
+# Create category
+def create_category(body):
+    response = requests.post(
+        f'{base_url}/createCategoryExternal',
+        headers=headers,
+        json=body
+    )
+    return response.json()
 ```
 
 ### cURL
@@ -875,6 +1008,14 @@ curl -H "x-api-key: YOUR_API_KEY" \
 # Get product by SKU
 curl -H "x-api-key: YOUR_API_KEY" \
   "https://backend.gudbelly.filflo.in/api/v1/external/products/sku/AV-OIL-002"
+
+# Product availability (all active products)
+curl -H "x-api-key: YOUR_API_KEY" \
+  "https://backend.gudbelly.filflo.in/api/v1/external/products/availability"
+
+# Product availability (filter by SKU, comma-separated)
+curl -H "x-api-key: YOUR_API_KEY" \
+  "https://backend.gudbelly.filflo.in/api/v1/external/products/availability?sku_code=SKU-001,SKU-002"
 
 # Get all categories
 curl -H "x-api-key: YOUR_API_KEY" \
@@ -901,6 +1042,13 @@ curl -X POST \
   -H "x-api-key: YOUR_API_KEY" \
   -d "{\"customerName\":\"Acme Retail\",\"shippingAddress\":{\"address\":\"Plot 12, Bengaluru\"},\"listOfProducts\":[{\"skuCode\":\"GB-SKU-001\",\"quantity\":10}]}" \
   "https://backend.gudbelly.filflo.in/api/v1/createOrderExternal"
+
+# Create category
+curl -X POST \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: YOUR_API_KEY" \
+  -d "{\"category_name\":\"Pantry - Oils\",\"category_description\":\"Cooking oils\"}" \
+  "https://backend.gudbelly.filflo.in/api/v1/createCategoryExternal"
 ```
 
 ---
