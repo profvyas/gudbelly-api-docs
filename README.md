@@ -64,15 +64,20 @@ All endpoints return JSON responses with the following structure:
 |-------|------|-------------|
 
 | `success` | boolean | Indicates if the request was successful |
+
 | `message` | string | Human-readable description of the result |
+
 | `timestamp` | string | ISO 8601 timestamp of the response |
+
 | `data` | array/object | The requested data |
+
 ---
 ## Endpoints
 
 ### 1. Get All Products
 
 Retrieves a paginated list of all products.
+
 **Endpoint:** `GET /products`
 
 **Query Parameters:**
@@ -154,6 +159,7 @@ curl -H "x-api-key: YOUR_API_KEY" \
 ### 2. Get Product by SKU
 
 Retrieves a single product by its SKU code.
+
 **Endpoint:** `GET /products/sku/:sku`
 
 **Path Parameters:**
@@ -165,14 +171,11 @@ Retrieves a single product by its SKU code.
 **Example Request:**
 ```bash
 curl -H "x-api-key: YOUR_API_KEY" \
-
   "https://backend.gudbelly.filflo.in/api/v1/external/products/sku/AV-OIL-002"
-
 ```
 **Example Response:**
 ```json
 {
-
   "success": true,
   "message": "Product fetched successfully",
   "timestamp": "2026-02-04T07:45:00.000Z",
@@ -191,12 +194,11 @@ curl -H "x-api-key: YOUR_API_KEY" \
 Retrieves all product categories.
 
 **Endpoint:** `GET /categories`
+
 **Example Request:**
 ```bash
 curl -H "x-api-key: YOUR_API_KEY" \
-
   "https://backend.gudbelly.filflo.in/api/v1/external/categories"
-
 ```
 **Example Response:**
 ```json
@@ -235,7 +237,9 @@ curl -H "x-api-key: YOUR_API_KEY" \
 ---
 ### 4. Get Products by Category
 Retrieves all products within a specific category.
+
 **Endpoint:** `GET /categories/:categoryId/products`
+
 **Path Parameters:**
 
 | Parameter | Type | Description |
@@ -287,7 +291,9 @@ Returns the **most recent** delivery tracking task for a given business **order 
 | Item        | Value |
 
 |------------|--------|
+
 | **Method** | `GET` |
+
 | **Path**   | `/api/v1/external/orders/:orderId/live-tracking` |
 
 **Path parameters:**
@@ -295,7 +301,7 @@ Returns the **most recent** delivery tracking task for a given business **order 
 | Param     | Description |
 
 |-----------|-------------|
-| `orderId` | The **orderâs business id** (same string as `orderId` on the order and on the `DeliveryTracking` document). This is **not** the MongoDB `_id` of the order unless your system uses that as the business id. |
+| `orderId` | The **orders business id** (same string as `orderId` on the order and on the `DeliveryTracking` document). This is **not** the MongoDB `_id` of the order unless your system uses that as the business id. |
 
 If multiple tracking records exist for the same `orderId`, the server returns the newest by `createdAt`.
 
@@ -303,6 +309,7 @@ If multiple tracking records exist for the same `orderId`, the server returns th
 
 - **Status:** `200`
 - **Body:** `{ "success": true, "message": "Order live tracking fetched successfully.", "data": { ...delivery tracking document } }`
+
 **Useful fields on `data`:**
   
 | Field | Notes |
@@ -313,7 +320,7 @@ If multiple tracking records exist for the same `orderId`, the server returns th
 | `currentLocation` | On the **task**: `{ latitude?, longitude?, recordedAt? }` when live transit updates have been written to this record |
 | `locationHistory` | Array of `{ latitude, longitude, recordedAt }` for the task |
 | `pickedupAt`, `droppedAt`, `assignedAt` | ISO dates when set |
-| `riderId` (populated) | `name`, `phone`, `vehicleNumber`, `isAvailable`, `lastLocationUpdatedAt`, **`currentLocation`** â rider position as GeoJSON: `{ type: "Point", coordinates: [longitude, latitude] }` |
+| `riderId` (populated) | `name`, `phone`, `vehicleNumber`, `isAvailable`, `lastLocationUpdatedAt`, **`currentLocation`**  rider position as GeoJSON: `{ type: "Point", coordinates: [longitude, latitude] }` |
 
 **Example request**
 There is no JSON body. Send the business `orderId` in the path and the API key in a header.
@@ -328,7 +335,7 @@ curl -sS "https://backend.gudbelly.filflo.in/api/v1/external/orders/ORD-2025-000
   -H "x-api-key: YOUR_API_KEY"
 ```
 
-For **Node.js**, use `getOrderLiveTracking` in [Code Examples](#code-examples) â **JavaScript (Node.js with Axios)**. For **Python**, use `get_order_live_tracking` in **Python (requests)** there (same `base_url` and headers as the other snippets).
+For **Node.js**, use `getOrderLiveTracking` in [Code Examples](#code-examples) **JavaScript (Node.js with Axios)**. For **Python**, use `get_order_live_tracking` in **Python (requests)** there (same `base_url` and headers as the other snippets).
 
 Replace `ORD-2025-00042` with the real order id. You can use `api-key` or `Authorization` instead of `x-api-key` (see [Authentication](#authentication)).
 
@@ -392,6 +399,7 @@ Shape matches a saved `DeliveryTracking` document plus populated `riderId`. Valu
 `data.currentLocation` / `data.locationHistory` may be empty or omitted until live transit points are recorded on the task. `data.riderId.currentLocation` uses GeoJSON: **`coordinates` are `[longitude, latitude]`**.
 
 **Error examples**
+
 | Status | When |
 
 |--------|------|
@@ -406,31 +414,18 @@ Shape matches a saved `DeliveryTracking` document plus populated `riderId`. Valu
 
 **Example `404` body**
 
-
-
 ```json
-
 {
-
   "success": false,
-
   "message": "No delivery tracking found for this order."
-
 }
 
 ```
-
-
-
 ---
-
-
 
 ### Product availability (stock snapshot)
 
-> **⚠️ Not yet deployed.** This endpoint is documented for upcoming release but currently returns 404 on production.
-
-
+> **Live** This endpoint is documented for upcoming release but currently returns 404 on production.
 
 Returns **active** products with warehouse-oriented fields: `sku_code`, `product_description`, `current_stock`, and computed **`available`** (accounts for rack linkage and open order reservations on the server).
 
@@ -440,71 +435,40 @@ Returns **active** products with warehouse-oriented fields: `sku_code`, `product
 
 |---|---|
 
-| **Method / path** | `GET /api/v1/external/products/availability` |
+| **Method | / path** | 
+|   GET |  /api/v1/external/products/availability` |
 
-| **Query (optional)** | `sku_code` â filter by one SKU or several (comma-separated), e.g. `?sku_code=SKU-1` or `?sku_code=SKU-1,SKU-2` |
-
-
+| **Query (optional)** | 
+`sku_code` filter by one SKU or several (comma-separated), e.g. `?sku_code=SKU-1` or `?sku_code=SKU-1,SKU-2` |
 
 **Example request**
 
-
-
 ```bash
-
 curl -H "x-api-key: YOUR_API_KEY" \
-
   "https://backend.gudbelly.filflo.in/api/v1/external/products/availability?sku_code=SKU-001,SKU-002"
-
 ```
-
-
-
 Omit `sku_code` to return all active products with availability fields.
 
-
-
-### Success response â HTTP 200
-
-
+### Success response 
+HTTP 200
 
 ```json
-
 {
-
   "success": true,
-
   "message": "Successfully fetched products with availability",
-
   "data": [
-
     {
-
       "sku_code": "SKU-001",
-
       "product_description": "Example item",
-
       "current_stock": 100,
-
       "available": 85
-
     }
-
   ]
-
 }
-
 ```
-
-
-
 When no matching active products exist, `data` is an empty array and `message` may be `"No active products found"`.
 
-
-
 ### Error responses
-
-
 
 | Status | When |
 
@@ -514,51 +478,27 @@ When no matching active products exist, `data` is an empty array and `message` m
 
 | `500` | Server error. |
 
-
-
 ---
 
-
-
-## 6. Create Product API (external â API key)
-
-
+## 6. Create Product API (external API key)
 
 Creates a **Product** record (and a matching **SKU** when one does not already exist for the same `sku_code`). Intended for **external integrations** authenticated with the API key.
 
-
-
 ### Endpoint
 
-
-
 | Method | Path |
-
 |--------|------|
-
 | `POST` | `/api/v1/createNewProductExternal` |
-
-
 
 **Authentication:** Use your issued external API key (see Headers below; must match what the server expects for these routes).
 
-
-
 Replace `{base_url}` with your API base through `/api/v1` (e.g. `https://your-host.com/api/v1`), same as the `base_url` variable in the [Code Examples](#code-examples).
-
-
 
 ### Query parameters
 
-
-
 **None.** This operation does not read URL query strings.
 
-
-
 ### Headers
-
-
 
 | Header | Required | Description |
 
@@ -572,11 +512,7 @@ Replace `{base_url}` with your API base through `/api/v1` (e.g. `https://your-ho
 
 ### Request body (JSON)
 
-
-
 #### Required fields
-
-
 
 | Field | Type | Description |
 
@@ -590,21 +526,17 @@ Replace `{base_url}` with your API base through `/api/v1` (e.g. `https://your-ho
 
 | `tax_slab` | string | One of: `TAX-00`, `TAX-05`, `TAX-12`, `TAX-18` |
 
-| `ppu` | number | Price per unit; must be â¥ 0 |
+| `ppu` | number | Price per unit; must be greated than or equal to 0 |
 
-
+| `product_category_id` | string | MongoDB ObjectId of a **Category** |
 
 #### Optional fields
-
-
 
 | Field | Type | Description |
 
 |-------|------|-------------|
 
 | `product_description` | string | Longer description |
-
-| `product_category_id` | string | MongoDB ObjectId of a **Category** |
 
 | `unit_of_measure` | string | `kilograms`, `litres`, or `units` (default: `units`) |
 
@@ -636,246 +568,128 @@ Replace `{base_url}` with your API base through `/api/v1` (e.g. `https://your-ho
 
 | `additional_images` | string[] | Array of image URLs (only applied if value is an array) |
 
-
-
 ### Example request
-
-
 
 ```http
 
 POST {base_url}/createNewProductExternal HTTP/1.1
-
 Content-Type: application/json
-
 x-api-key: YOUR_API_KEY
 
 ```
 
-
-
 ```json
-
 {
-
   "product_name": "Example item",
-
   "product_description": "Short description",
-
   "product_category_id": "679f98c4eb05c298726ab7cc",
-
   "sku_code": "SKU-EXAMPLE-001",
-
   "unit_of_measure": "units",
-
   "current_stock": 0,
-
   "current_count": 0,
-
   "hsn_code": "7113",
-
   "ean_code": "8901234567890",
-
   "tax_slab": "TAX-05",
-
   "ppu": 199,
-
   "case_size": 1,
-
   "cogs": 0,
-
   "blinkit_sku_code": "BL-123",
-
   "image_url": "https://example.com/image.jpg"
-
 }
 
 ```
-
-
-
 **Minimal body (required fields only)**
 
-
-
 ```json
 
 {
-
   "product_name": "Example item",
-
   "sku_code": "SKU-EXAMPLE-001",
-
   "hsn_code": "7113",
-
   "tax_slab": "TAX-05",
-
   "ppu": 199
-
 }
 
 ```
-
-
-
 ### Example responses
 
-
-
-#### 200 â Created
-
-
+#### 200 Created
 
 ```json
-
 {
-
   "success": true,
-
   "message": "Successfully created the Product",
-
   "timestamp": "2026-02-04T07:40:34.210Z",
-
   "data": [
-
     {
-
       "_id": "67a1b2c3d4e5f6789012345",
-
       "product_name": "Example item",
-
       "sku_code": "SKU-EXAMPLE-001",
-
       "hsn_code": "7113",
-
       "tax_slab": "TAX-05",
-
       "ppu": 199,
-
       "unit_of_measure": "units",
-
       "current_stock": 0,
-
       "sku_reference_id": "67a1b2c3d4e5f6789012346",
-
       "createdAt": "2026-02-04T07:40:34.200Z",
-
       "updatedAt": "2026-02-04T07:40:34.200Z"
-
     }
-
   ]
-
 }
-
 ```
-
-
-
 The first element of `data` is the created product document; other fields may appear depending on what was sent and Mongoose defaults.
 
-
-
-#### 400 â Duplicate SKU
-
-
+#### 400 -Duplicate SKU
 
 ```json
-
 {
-
   "success": false,
-
   "message": "SKU code \"SKU-EXAMPLE-001\" already exists.",
-
   "timestamp": "2026-02-04T07:40:34.210Z",
-
   "data": []
-
 }
 
 ```
-
-
-
-#### 401 â Missing or invalid API key
-
-
+#### 401 Missing or invalid API key
 
 ```json
-
 {
-
   "success": false,
-
   "message": "API key is required"
-
 }
 
 ```
-
-
-
 or
 
-
-
 ```json
 
 {
-
   "success": false,
-
   "message": "Invalid API key",
-
   "timestamp": "2026-02-04T07:40:34.210Z"
-
 }
-
 ```
 
-
-
-#### 500 â Server error
-
-
+#### 500 Server error
 
 ```json
-
 {
-
   "success": false,
-
   "message": "Internal server error",
-
   "timestamp": "2026-02-04T07:40:34.210Z",
-
   "data": []
-
 }
 
 ```
-
-
-
 Validation errors (e.g. invalid `tax_slab` or missing required fields) may also surface as **500** with the generic message, depending on Mongoose error handling.
-
-
 
 ---
 
-
-
 ## 7. Create order (external)
-
-
 
 Creates an order using the same handler as `POST /api/v1/createOrder`; only authentication differs. **No warehouse user JWT is used**, so `created_by` on the order is stored as `null` unless you extend the server to map API keys to users.
 
-
-
 **Authentication:** `Content-Type: application/json` and `x-api-key` (same API key pattern as **Create Product API** above). `POST` to `{base_url}/createOrderExternal` (see `{base_url}` under **Create Product API** above).
-
 
 
 | Item        | Value |
@@ -886,11 +700,7 @@ Creates an order using the same handler as `POST /api/v1/createOrder`; only auth
 
 | **Path**   | `/api/v1/createOrderExternal` |
 
-
-
 ### Required body fields
-
-
 
 | Field              | Type   | Description |
 
@@ -903,14 +713,9 @@ Creates an order using the same handler as `POST /api/v1/createOrder`; only auth
 | `listOfProducts`   | array  | At least one line item (see below). |
 
 
-
 ### Line item (`listOfProducts[]`)
 
-
-
 Each item must identify a product **either** by MongoDB id **or** by SKU:
-
-
 
 | Field         | Type   | Required | Description |
 
@@ -922,13 +727,9 @@ Each item must identify a product **either** by MongoDB id **or** by SKU:
 
 | `quantity`    | number | yes      | Ordered quantity |
 
-| `ppu`         | number | no       | Price per unit for this line; if omitted, productâs `ppu` is used |
-
-
+| `ppu`         | number | no       | Price per unit for this line; if omitted, products `ppu` is used |
 
 ### Optional body fields
-
-
 
 | Field                   | Type   | Default / notes |
 
@@ -982,67 +783,36 @@ Each item must identify a product **either** by MongoDB id **or** by SKU:
 
 | `meta`                  | object | `{}` |
 
-
-
 New orders are created with status `pending`.
 
-
-
 ### Example request
-
-
 
 ```json
 
 {
-
   "customerName": "Acme Retail",
-
   "customerEmail": "orders@acme.example",
-
   "customerPhone": "+919999999999",
-
   "shippingAddress": {
-
     "address": "Plot 12, Industrial Area, Bengaluru 560001",
-
     "dropLatitude": 12.97,
-
     "dropLongitude": 77.59
-
   },
-
   "listOfProducts": [
-
     { "skuCode": "GB-SKU-001", "quantity": 10, "ppu": 120.5 },
-
     { "skuCode": "GB-SKU-002", "quantity": 2 }
-
   ],
-
   "platform": "Custom",
-
   "paymentStatus": "unpaid"
-
 }
 
 ```
-
-
-
 ### Success response
 
-
-
 - **Status:** `201`
-
 - **Body:** `{ "success": true, "message": "Order created successfully.", "data": { ...order document } }`
 
-
-
 ### Error examples
-
-
 
 | Status | When |
 
@@ -1050,43 +820,26 @@ New orders are created with status `pending`.
 
 | `400`  | Missing `customerName`, invalid/empty `shippingAddress`, empty `listOfProducts`, or duplicate `orderId` |
 
-| `404`  | A line itemâs `skuCode` / `product_id` does not match any product |
+| `404`  | A line items `skuCode` / `product_id` does not match any product |
 
 | `500`  | Server error |
 
-
-
 ---
-
-
-
 ## 8. Create category (external)
 
-> **⚠️ Not yet deployed.** This endpoint is documented for upcoming release but currently returns 404 on production.
-
-
+> **Live** This endpoint is documented for upcoming release but currently returns 404 on production.
 
 Creates a new product category.
 
+**Authentication:** `Content-Type: application/json` and `x-api-key` (same pattern as **Create Product API**). 
 
-
-**Authentication:** `Content-Type: application/json` and `x-api-key` (same pattern as **Create Product API**). `POST` to `{base_url}/createCategoryExternal` (see `{base_url}` under **Create Product API** above).
-
-
-
-| | |
-
-|---|---|
+`POST` to `{base_url}/createCategoryExternal` (see `{base_url}` under **Create Product API** above).
 
 | **Method / path** | `POST /api/v1/createCategoryExternal` |
 
 | **Content-Type** | `application/json` |
 
-
-
 ### Request body (JSON)
-
-
 
 | Field | Type | Required | Description |
 
@@ -1096,61 +849,31 @@ Creates a new product category.
 
 | `category_description` | string | No | Optional description |
 
-
-
 ### Example request
 
-
-
 ```json
 
 {
-
   "category_name": "Pantry - Oils",
-
   "category_description": "Cooking oils"
-
 }
-
 ```
-
-
-
-### Success response â HTTP 200
-
-
+### Success response HTTP 200
 
 ```json
-
 {
-
   "success": true,
-
   "message": "SuccessFully created the Category",
-
   "data": {
-
     "_id": "...",
-
     "category_name": "...",
-
     "category_description": "...",
-
     "createdAt": "...",
-
     "updatedAt": "..."
-
   }
-
 }
-
 ```
-
-
-
 ### Error responses
-
-
 
 | Status | When |
 
@@ -1160,42 +883,22 @@ Creates a new product category.
 
 | `500` | Server error. |
 
-
-
 ---
 
-
-
 ## Pagination
-
-
-
 Endpoints that return lists support pagination through the following response structure:
-
-
 
 ```json
 
 {
-
   "pagination": {
-
     "current_page": 1,
-
     "per_page": 100,
-
     "total_count": 256,
-
     "total_pages": 3
-
   }
-
 }
-
 ```
-
-
-
 | Field | Description |
 
 |-------|-------------|
@@ -1208,19 +911,10 @@ Endpoints that return lists support pagination through the following response st
 
 | `total_pages` | Total number of pages |
 
-
-
 ---
-
-
-
 ## Error Handling
 
-
-
 ### HTTP Status Codes
-
-
 
 | Status Code | Description |
 
@@ -1234,50 +928,26 @@ Endpoints that return lists support pagination through the following response st
 
 | 500 | Internal Server Error |
 
-
-
 ### Error Response Format
 
-
-
 ```json
-
 {
-
   "success": false,
-
   "message": "Error description",
-
   "timestamp": "2026-02-04T07:40:34.210Z"
-
 }
 
 ```
-
-
-
 ---
-
-
 
 ## Code Examples
 
-
-
-The snippets below share one `base_url`, one API key (`YOUR_API_KEY`), and one HTTP client pattern. They cover the read endpoints **1â4**, **Product availability** (`getProductsAvailability` / `get_products_availability`), **Get live tracking by order** (endpoint **5**, `getOrderLiveTracking` / `get_order_live_tracking`), plus **Create Product**, **Create order**, and **Create category** (`POST` to `createNewProductExternal`, `createOrderExternal`, and `createCategoryExternal`; see sections **6**, **7**, and **8** above).
-
-
+The snippets below share one `base_url`, one API key (`YOUR_API_KEY`), and one HTTP client pattern. They cover the read endpoints **1 to 4**, **Product availability** (`getProductsAvailability` / `get_products_availability`), **Get live tracking by order** (endpoint **5**, `getOrderLiveTracking` / `get_order_live_tracking`), plus **Create Product**, **Create order**, and **Create category** (`POST` to `createNewProductExternal`, `createOrderExternal`, and `createCategoryExternal`; see sections **6**, **7**, and **8** above).
 
 ### JavaScript (Node.js with Axios)
 
-
-
 ```javascript
-
 const axios = require('axios');
-
-
-
 const base_url = 'https://backend.gudbelly.filflo.in/api/v1';
 const client = axios.create({
   headers: {
@@ -1300,7 +970,6 @@ async function getProducts(page = 1, limit = 100) {
 async function getProductBySku(sku) {
   const response = await client.get(`${base_url}/external/products/sku/${sku}`);
   return response.data;
-
 }
 
 // Product availability (optional comma-separated sku_code query)
@@ -1309,12 +978,9 @@ async function getProductsAvailability(skuCodes) {
   const params = skuCodes ? { sku_code: skuCodes } : {};
   const response = await client.get(`${base_url}/external/products/availability`, {
     params
-
   });
   return response.data;
 }
-
-
 
 // Get all categories
 
