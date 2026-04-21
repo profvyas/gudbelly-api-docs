@@ -18,43 +18,24 @@ This guide explains how to integrate with the GudBelly External API to access pr
 | `/createOrderExternal` | POST | ✅ Live |
 | `/createCategoryExternal` | POST | ⚠️ Not yet deployed |
 
-
-
 ## Base URL
 
-
-
 ```
-
 https://backend.gudbelly.filflo.in/api/v1/external
-
 ```
-
-
 
 ## Authentication
 
-
-
 All API requests require an API key passed in the `x-api-key` header.
-
-
 
 ```bash
 
 curl -H "x-api-key: YOUR_API_KEY" https://backend.gudbelly.filflo.in/api/v1/external/products
 
 ```
-
-
-
 **Note:** Contact GudBelly to obtain your API key.
 
-
-
 ### Authentication Errors
-
-
 
 | Status Code | Description |
 
@@ -62,736 +43,355 @@ curl -H "x-api-key: YOUR_API_KEY" https://backend.gudbelly.filflo.in/api/v1/exte
 
 | 401 | Missing or invalid API key |
 
-
-
 ## Response Format
 
-
-
 All endpoints return JSON responses with the following structure:
-
-
 
 ```json
 
 {
 
   "success": true,
-
   "message": "Description of the result",
-
   "timestamp": "2026-02-04T07:40:34.210Z",
-
   "data": [ ... ]
-
 }
-
 ```
-
-
-
 ### Response Fields
-
-
 
 | Field | Type | Description |
 
 |-------|------|-------------|
 
 | `success` | boolean | Indicates if the request was successful |
-
 | `message` | string | Human-readable description of the result |
-
 | `timestamp` | string | ISO 8601 timestamp of the response |
-
 | `data` | array/object | The requested data |
-
-
-
 ---
-
-
-
 ## Endpoints
-
-
 
 ### 1. Get All Products
 
-
-
 Retrieves a paginated list of all products.
-
-
-
 **Endpoint:** `GET /products`
-
-
 
 **Query Parameters:**
 
-
-
 | Parameter | Type | Default | Description |
-
 |-----------|------|---------|-------------|
-
 | `page` | integer | 1 | Page number |
-
 | `limit` | integer | 100 | Items per page |
-
-
 
 **Example Request:**
 
-
-
 ```bash
-
 curl -H "x-api-key: YOUR_API_KEY" \
-
   "https://backend.gudbelly.filflo.in/api/v1/external/products?page=1&limit=50"
-
 ```
-
-
-
 **Example Response:**
-
-
-
 ```json
-
 {
-
   "success": true,
-
   "message": "Products fetched successfully",
-
   "timestamp": "2026-02-04T07:40:34.210Z",
-
   "pagination": {
-
     "current_page": 1,
-
     "per_page": 100,
-
     "total_count": 256,
-
     "total_pages": 3
-
   },
-
   "count": 100,
-
   "data": [
-
     {
-
       "_id": "692a7ad9e27f04764e471c71",
-
       "product_name": "Wood-Pressed Sunflower Oil",
-
       "product_description": "Pantry Oil - Sunflower/Soy/Blend",
-
       "sku_code": "AV-OIL-002",
-
       "category": "Pantry - Oil - Sunflower/Soy/Blend",
-
       "category_id": "692a7ad8e27f04764e471c6c",
-
       "ppu": 550,
-
       "hsn_code": "7113",
-
       "tax_slab": "TAX-05",
-
       "unit_of_measure": "units",
-
       "case_size": 1,
-
       "weight": "0.5",
-
       "current_stock": 0,
-
       "image_url": null,
-
       "image_alt_text": null,
-
       "is_active": true,
-
       "created_at": "2025-11-29T04:47:21.128Z",
-
       "updated_at": "2026-02-02T10:48:50.113Z"
-
     }
-
   ]
-
 }
 
 ```
 
-
-
 **Product Fields:**
 
-
-
 | Field | Type | Description |
-
 |-------|------|-------------|
-
 | `_id` | string | Unique product identifier |
-
 | `product_name` | string | Product display name |
-
 | `product_description` | string | Product description |
-
 | `sku_code` | string | Stock Keeping Unit code |
-
 | `category` | string | Category name |
-
 | `category_id` | string | Category identifier |
-
 | `ppu` | number | Price per unit |
-
 | `hsn_code` | string | HSN code for taxation |
-
 | `tax_slab` | string | Tax slab identifier |
-
 | `unit_of_measure` | string | Unit of measurement |
-
 | `case_size` | number | Units per case |
-
 | `weight` | string | Product weight |
-
 | `current_stock` | number | Current stock level |
-
 | `image_url` | string | Product image URL (nullable) |
-
 | `is_active` | boolean | Whether product is active |
-
 | `created_at` | string | Creation timestamp |
-
 | `updated_at` | string | Last update timestamp |
-
-
 
 ---
 
-
-
 ### 2. Get Product by SKU
 
-
-
 Retrieves a single product by its SKU code.
-
-
-
 **Endpoint:** `GET /products/sku/:sku`
-
-
 
 **Path Parameters:**
 
-
-
 | Parameter | Type | Description |
-
 |-----------|------|-------------|
-
 | `sku` | string | The product SKU code |
 
-
-
 **Example Request:**
-
-
-
 ```bash
-
 curl -H "x-api-key: YOUR_API_KEY" \
 
   "https://backend.gudbelly.filflo.in/api/v1/external/products/sku/AV-OIL-002"
 
 ```
-
-
-
 **Example Response:**
-
-
-
 ```json
-
 {
 
   "success": true,
-
   "message": "Product fetched successfully",
-
   "timestamp": "2026-02-04T07:45:00.000Z",
-
   "data": {
-
     "_id": "692a7ad9e27f04764e471c71",
-
     "product_name": "Wood-Pressed Sunflower Oil",
-
     "sku_code": "AV-OIL-002",
-
     ...
-
   }
-
 }
-
 ```
-
-
-
 ---
-
-
 
 ### 3. Get All Categories
 
-
-
 Retrieves all product categories.
 
-
-
 **Endpoint:** `GET /categories`
-
-
-
 **Example Request:**
-
-
-
 ```bash
-
 curl -H "x-api-key: YOUR_API_KEY" \
 
   "https://backend.gudbelly.filflo.in/api/v1/external/categories"
 
 ```
-
-
-
 **Example Response:**
-
-
-
 ```json
-
 {
-
   "success": true,
-
   "message": "Categories fetched successfully",
-
   "timestamp": "2026-02-04T07:45:34.942Z",
-
   "count": 10,
-
   "data": [
-
     {
-
       "_id": "692a7ad9e27f04764e471c77",
-
       "category_name": "Beverages - Functional Soda / Sparkling Tonic",
-
       "category_code": null,
-
       "created_at": "2025-11-29T04:47:21.297Z",
-
       "updated_at": "2025-11-29T04:47:21.297Z"
-
     },
-
     {
-
       "_id": "692a7ad9e27f04764e471c82",
-
       "category_name": "Beverages - Kombucha",
-
       "category_code": null,
-
       "created_at": "2025-11-29T04:47:21.607Z",
-
       "updated_at": "2025-11-29T04:47:21.607Z"
-
     }
-
   ]
-
 }
-
 ```
-
-
-
 **Category Fields:**
 
-
-
 | Field | Type | Description |
-
 |-------|------|-------------|
-
 | `_id` | string | Unique category identifier |
-
 | `category_name` | string | Category display name |
-
 | `category_code` | string | Category code (nullable) |
-
 | `created_at` | string | Creation timestamp |
-
 | `updated_at` | string | Last update timestamp |
-
-
-
 ---
-
-
-
 ### 4. Get Products by Category
-
-
-
 Retrieves all products within a specific category.
-
-
-
 **Endpoint:** `GET /categories/:categoryId/products`
-
-
-
 **Path Parameters:**
 
-
-
 | Parameter | Type | Description |
-
 |-----------|------|-------------|
-
 | `categoryId` | string | The category ID |
 
-
-
 **Query Parameters:**
-
-
-
 | Parameter | Type | Default | Description |
-
-|-----------|------|---------|-------------|
-
+|----------|------|---------|-------------|
 | `page` | integer | 1 | Page number |
-
 | `limit` | integer | 100 | Items per page |
-
-
 
 **Example Request:**
 
-
-
 ```bash
-
 curl -H "x-api-key: YOUR_API_KEY" \
-
   "https://backend.gudbelly.filflo.in/api/v1/external/categories/692a7ad9e27f04764e471c77/products"
-
 ```
-
-
-
 **Example Response:**
 
-
-
 ```json
-
 {
-
   "success": true,
-
   "message": "Products fetched successfully",
-
   "timestamp": "2026-02-04T07:50:00.000Z",
-
   "pagination": {
-
     "current_page": 1,
-
     "per_page": 100,
-
     "total_count": 15,
-
     "total_pages": 1
-
   },
-
   "count": 15,
-
   "data": [
-
     {
-
       "_id": "...",
-
       "product_name": "...",
-
       "sku_code": "...",
-
       ...
-
     }
-
   ]
-
 }
-
 ```
-
-
-
 ---
-
-
 
 ### 5. Get live tracking by order
 
-
-
 Returns the **most recent** delivery tracking task for a given business **order id** (same logic as `GET /api/v1/getOrderLiveTracking/:orderId`), authenticated with the API key instead of a rider/admin JWT.
-
-
 
 | Item        | Value |
 
 |------------|--------|
-
 | **Method** | `GET` |
-
 | **Path**   | `/api/v1/external/orders/:orderId/live-tracking` |
 
-
-
 **Path parameters:**
-
-
 
 | Param     | Description |
 
 |-----------|-------------|
-
 | `orderId` | The **orderâs business id** (same string as `orderId` on the order and on the `DeliveryTracking` document). This is **not** the MongoDB `_id` of the order unless your system uses that as the business id. |
-
-
 
 If multiple tracking records exist for the same `orderId`, the server returns the newest by `createdAt`.
 
-
-
 **Success response**
 
-
-
 - **Status:** `200`
-
 - **Body:** `{ "success": true, "message": "Order live tracking fetched successfully.", "data": { ...delivery tracking document } }`
-
-
-
 **Useful fields on `data`:**
-
-
-
+  
 | Field | Notes |
-
 |-------|--------|
-
 | `status` | `assigned`, `pickedup`, `in_transit`, or `dropped` |
-
 | `orderId`, `riderId` | Business order id; assigned rider (populated object below) |
-
 | `pickupLocation`, `dropLocation` | `{ latitude, longitude, address? }` |
-
 | `currentLocation` | On the **task**: `{ latitude?, longitude?, recordedAt? }` when live transit updates have been written to this record |
-
 | `locationHistory` | Array of `{ latitude, longitude, recordedAt }` for the task |
-
 | `pickedupAt`, `droppedAt`, `assignedAt` | ISO dates when set |
-
 | `riderId` (populated) | `name`, `phone`, `vehicleNumber`, `isAvailable`, `lastLocationUpdatedAt`, **`currentLocation`** â rider position as GeoJSON: `{ type: "Point", coordinates: [longitude, latitude] }` |
 
-
-
 **Example request**
-
-
-
 There is no JSON body. Send the business `orderId` in the path and the API key in a header.
 
-
-
 ```http
-
 GET /api/v1/external/orders/ORD-2025-00042/live-tracking HTTP/1.1
-
 Host: backend.gudbelly.filflo.in
-
 x-api-key: YOUR_API_KEY
-
 ```
-
-
-
 ```bash
-
 curl -sS "https://backend.gudbelly.filflo.in/api/v1/external/orders/ORD-2025-00042/live-tracking" \
-
   -H "x-api-key: YOUR_API_KEY"
-
 ```
-
-
 
 For **Node.js**, use `getOrderLiveTracking` in [Code Examples](#code-examples) â **JavaScript (Node.js with Axios)**. For **Python**, use `get_order_live_tracking` in **Python (requests)** there (same `base_url` and headers as the other snippets).
 
-
-
 Replace `ORD-2025-00042` with the real order id. You can use `api-key` or `Authorization` instead of `x-api-key` (see [Authentication](#authentication)).
-
-
 
 **Example response (`200`)**
 
-
-
 Shape matches a saved `DeliveryTracking` document plus populated `riderId`. Values below are illustrative.
 
-
-
 ```json
-
 {
-
   "success": true,
-
   "message": "Order live tracking fetched successfully.",
-
   "data": {
-
     "_id": "674a1b2c3d4e5f6789abcdef",
-
     "orderId": "ORD-2025-00042",
-
     "riderId": {
-
       "_id": "674a1b2c3d4e5f6789abc111",
-
       "name": "Ravi Kumar",
-
       "phone": "+919876543210",
-
       "vehicleNumber": "KA01AB1234",
-
       "isAvailable": false,
-
       "lastLocationUpdatedAt": "2026-03-29T10:15:00.000Z",
-
       "currentLocation": {
-
         "type": "Point",
-
         "coordinates": [77.5946, 12.9716]
-
       }
-
     },
-
     "status": "in_transit",
-
     "pickupLocation": {
-
       "latitude": 12.98,
-
       "longitude": 77.6,
-
       "address": "Gudbelly Warehouse"
-
     },
-
     "dropLocation": {
-
       "latitude": 12.95,
-
       "longitude": 77.58,
-
       "address": "Customer drop address"
-
     },
-
     "currentLocation": {
-
       "latitude": 12.97,
-
       "longitude": 77.59,
-
       "recordedAt": "2026-03-29T10:14:30.000Z"
-
     },
-
     "locationHistory": [
-
       {
-
         "latitude": 12.968,
-
         "longitude": 77.592,
-
         "recordedAt": "2026-03-29T10:10:00.000Z"
-
       }
-
     ],
-
     "assignedAt": "2026-03-29T09:00:00.000Z",
-
     "pickedupAt": "2026-03-29T09:45:00.000Z",
-
     "droppedAt": null,
-
     "createdAt": "2026-03-29T09:00:00.000Z",
-
     "updatedAt": "2026-03-29T10:15:00.000Z",
-
     "__v": 0
-
   }
-
 }
 
 ```
 
-
-
 `data.currentLocation` / `data.locationHistory` may be empty or omitted until live transit points are recorded on the task. `data.riderId.currentLocation` uses GeoJSON: **`coordinates` are `[longitude, latitude]`**.
 
-
-
 **Error examples**
-
-
-
 | Status | When |
 
 |--------|------|
@@ -1679,65 +1279,39 @@ const axios = require('axios');
 
 
 const base_url = 'https://backend.gudbelly.filflo.in/api/v1';
-
-
-
 const client = axios.create({
-
   headers: {
-
     'Content-Type': 'application/json',
-
     'x-api-key': 'YOUR_API_KEY'
-
   }
-
 });
-
-
 
 // Get all products
 
 async function getProducts(page = 1, limit = 100) {
-
   const response = await client.get(`${base_url}/external/products`, {
-
     params: { page, limit }
-
   });
-
   return response.data;
-
 }
-
-
 
 // Get product by SKU
 
 async function getProductBySku(sku) {
-
   const response = await client.get(`${base_url}/external/products/sku/${sku}`);
-
   return response.data;
 
 }
 
-
-
 // Product availability (optional comma-separated sku_code query)
 
 async function getProductsAvailability(skuCodes) {
-
   const params = skuCodes ? { sku_code: skuCodes } : {};
-
   const response = await client.get(`${base_url}/external/products/availability`, {
-
     params
 
   });
-
   return response.data;
-
 }
 
 
@@ -1745,402 +1319,221 @@ async function getProductsAvailability(skuCodes) {
 // Get all categories
 
 async function getCategories() {
-
   const response = await client.get(`${base_url}/external/categories`);
-
   return response.data;
-
 }
-
-
 
 // Get products by category
 
 async function getProductsByCategory(categoryId, page = 1, limit = 100) {
-
   const response = await client.get(
-
     `${base_url}/external/categories/${categoryId}/products`,
-
     { params: { page, limit } }
-
   );
-
   return response.data;
 
 }
-
-
 
 // Get live tracking by business order id
 
 async function getOrderLiveTracking(orderId) {
-
   const response = await client.get(
-
     `${base_url}/external/orders/${encodeURIComponent(orderId)}/live-tracking`
-
   );
-
   return response.data;
 
 }
-
-
-
 // Create product
 
 async function createProduct(body) {
-
   const response = await client.post(`${base_url}/createNewProductExternal`, body);
-
   return response.data;
-
 }
-
-
 
 // Create order
 
 async function createOrder(body) {
-
   const response = await client.post(`${base_url}/createOrderExternal`, body);
-
   return response.data;
-
 }
 
-
-
 // Create category
-
 async function createCategory(body) {
-
   const response = await client.post(`${base_url}/createCategoryExternal`, body);
-
   return response.data;
-
 }
 
 ```
-
-
-
 ### Python (with Requests)
 
-
-
 ```python
-
 import requests
-
 from urllib.parse import quote
-
-
-
 base_url = 'https://backend.gudbelly.filflo.in/api/v1'
-
 API_KEY = 'YOUR_API_KEY'
 
-
-
 headers = {
-
     'x-api-key': API_KEY,
-
     'Content-Type': 'application/json',
-
 }
-
-
 
 # Get all products
 
 def get_products(page=1, limit=100):
-
     response = requests.get(
-
         f'{base_url}/external/products',
-
         headers=headers,
-
         params={'page': page, 'limit': limit}
-
     )
-
     return response.json()
-
-
 
 # Get product by SKU
 
 def get_product_by_sku(sku):
-
     response = requests.get(
-
         f'{base_url}/external/products/sku/{sku}',
-
         headers=headers
-
     )
-
     return response.json()
-
-
 
 # Product availability (sku_codes: optional str, e.g. "SKU-1" or "SKU-1,SKU-2")
 
 def get_products_availability(sku_codes=None):
-
     kwargs = {'headers': headers}
-
     if sku_codes:
-
         kwargs['params'] = {'sku_code': sku_codes}
-
     response = requests.get(
-
         f'{base_url}/external/products/availability',
-
         **kwargs,
-
     )
-
     return response.json()
-
-
 
 # Get all categories
 
 def get_categories():
-
     response = requests.get(
-
         f'{base_url}/external/categories',
-
         headers=headers
-
     )
-
     return response.json()
-
-
 
 # Get products by category
 
 def get_products_by_category(category_id, page=1, limit=100):
 
     response = requests.get(
-
         f'{base_url}/external/categories/{category_id}/products',
-
         headers=headers,
-
         params={'page': page, 'limit': limit}
-
     )
-
     return response.json()
-
-
 
 # Get live tracking by business order id
 
 def get_order_live_tracking(order_id):
-
     response = requests.get(
-
         f'{base_url}/external/orders/{quote(order_id, safe="")}/live-tracking',
-
         headers=headers,
-
     )
-
     return response.json()
-
-
 
 # Create product
 
 def create_product(body):
-
     response = requests.post(
-
         f'{base_url}/createNewProductExternal',
-
         headers=headers,
-
         json=body
-
     )
-
     return response.json()
-
-
 
 # Create order
 
 def create_order(body):
-
     response = requests.post(
-
         f'{base_url}/createOrderExternal',
-
         headers=headers,
-
         json=body
-
     )
-
     return response.json()
-
-
 
 # Create category
 
 def create_category(body):
-
     response = requests.post(
-
         f'{base_url}/createCategoryExternal',
-
         headers=headers,
-
         json=body
-
     )
-
     return response.json()
 
 ```
 
-
-
 ### cURL
-
-
-
 ```bash
 
 # Get all products
 
 curl -H "x-api-key: YOUR_API_KEY" \
-
   "https://backend.gudbelly.filflo.in/api/v1/external/products"
-
-
 
 # Get product by SKU
 
 curl -H "x-api-key: YOUR_API_KEY" \
-
   "https://backend.gudbelly.filflo.in/api/v1/external/products/sku/AV-OIL-002"
-
-
 
 # Product availability (all active products)
 
 curl -H "x-api-key: YOUR_API_KEY" \
-
   "https://backend.gudbelly.filflo.in/api/v1/external/products/availability"
-
-
 
 # Product availability (filter by SKU, comma-separated)
 
 curl -H "x-api-key: YOUR_API_KEY" \
-
   "https://backend.gudbelly.filflo.in/api/v1/external/products/availability?sku_code=SKU-001,SKU-002"
-
-
 
 # Get all categories
 
 curl -H "x-api-key: YOUR_API_KEY" \
-
   "https://backend.gudbelly.filflo.in/api/v1/external/categories"
-
-
 
 # Get products by category
 
 curl -H "x-api-key: YOUR_API_KEY" \
-
   "https://backend.gudbelly.filflo.in/api/v1/external/categories/692a7ad9e27f04764e471c77/products"
-
-
 
 # Get live tracking by order (replace ORD-2025-00042 with business orderId)
 
 curl -sS "https://backend.gudbelly.filflo.in/api/v1/external/orders/ORD-2025-00042/live-tracking" \
-
   -H "x-api-key: YOUR_API_KEY"
-
-
 
 # Create product
 
 curl -X POST \
-
   -H "Content-Type: application/json" \
-
   -H "x-api-key: YOUR_API_KEY" \
-
   -d "{\"product_name\":\"Example item\",\"sku_code\":\"SKU-EXAMPLE-001\",\"hsn_code\":\"7113\",\"tax_slab\":\"TAX-05\",\"ppu\":199}" \
-
   "https://backend.gudbelly.filflo.in/api/v1/createNewProductExternal"
-
-
 
 # Create order
 
 curl -X POST \
-
   -H "Content-Type: application/json" \
-
   -H "x-api-key: YOUR_API_KEY" \
-
   -d "{\"customerName\":\"Acme Retail\",\"shippingAddress\":{\"address\":\"Plot 12, Bengaluru\"},\"listOfProducts\":[{\"skuCode\":\"GB-SKU-001\",\"quantity\":10}]}" \
-
   "https://backend.gudbelly.filflo.in/api/v1/createOrderExternal"
 
-
-
 # Create category
-
 curl -X POST \
-
   -H "Content-Type: application/json" \
-
   -H "x-api-key: YOUR_API_KEY" \
-
   -d "{\"category_name\":\"Pantry - Oils\",\"category_description\":\"Cooking oils\"}" \
-
   "https://backend.gudbelly.filflo.in/api/v1/createCategoryExternal"
-
 ```
-
-
-
 ---
-
-
-
 ## Rate Limiting
-
-
-
 Please contact GudBelly for information about rate limits applicable to your API key.
-
-
-
 ---
-
-
-
 ## Support
-
-
-
 For API support or to request an API key, please contact GudBelly at your designated support channel.
 
