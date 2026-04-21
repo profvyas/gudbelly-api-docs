@@ -31,9 +31,9 @@ data: <json_payload>
 
 ```
 
-- **`event:`** — logical event name (see below). Omit parsing as generic `message` only if you subscribe to the default channel; prefer listening by `event` name.
-- **`data:`** — single-line JSON object (stringified).
-- Blank line — message terminator.
+- **`event:`** - logical event name (see below). Omit parsing as generic `message` only if you subscribe to the default channel; prefer listening by `event` name.
+- **`data:`** - single-line JSON object (stringified).
+- Blank line - message terminator.
 
 **Comment lines** (ignored by clients, used for keepalive):
 
