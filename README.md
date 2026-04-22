@@ -2,7 +2,7 @@
 
 
 
-This guide explains how to integrate with the GudBelly External API to access product and category data, product availability (stock snapshots), order live tracking, and to create products, categories, and orders using the API key.
+This guide explains how to integrate with the GudBelly External API to access product and category data, product availability (stock snapshots), order live tracking, and to create and update products, categories, and orders using the API key.
 
 ## Endpoint Status (Last tested: April 3, 2026)
 
@@ -13,10 +13,11 @@ This guide explains how to integrate with the GudBelly External API to access pr
 | `/external/categories` | GET | ✅ Live |
 | `/external/categories/:id/products` | GET | ✅ Live |
 | `/external/orders/:id/live-tracking` | GET | ✅ Live |
-| `/external/products/availability` | GET | ⚠️ Not yet deployed |
+| `/external/products/availability` | GET | ✅ Live|
 | `/createNewProductExternal` | POST | ✅ Live |
 | `/createOrderExternal` | POST | ✅ Live |
-| `/createCategoryExternal` | POST | ⚠️ Not yet deployed |
+| `/createCategoryExternal` | POST | ✅ Live |
+| `/external/updateProduct/:id` | POST | ✅ Live |
 
 ## Base URL
 
@@ -288,9 +289,6 @@ curl -H "x-api-key: YOUR_API_KEY" \
 
 Returns the **most recent** delivery tracking task for a given business **order id** (same logic as `GET /api/v1/getOrderLiveTracking/:orderId`), authenticated with the API key instead of a rider/admin JWT.
 
-| Item        | Value |
-
-|------------|--------|
 
 | **Method** | `GET` |
 
@@ -299,6 +297,7 @@ Returns the **most recent** delivery tracking task for a given business **order 
 **Path parameters:**
 
 | Param     | Description |
+
 
 |-----------|-------------|
 | `orderId` | The **orders business id** (same string as `orderId` on the order and on the `DeliveryTracking` document). This is **not** the MongoDB `_id` of the order unless your system uses that as the business id. |
@@ -425,18 +424,15 @@ Shape matches a saved `DeliveryTracking` document plus populated `riderId`. Valu
 
 ### Product availability (stock snapshot)
 
-> **Live** This endpoint is documented for upcoming release but currently returns 404 on production.
-
 Returns **active** products with warehouse-oriented fields: `sku_code`, `product_description`, `current_stock`, and computed **`available`** (accounts for rack linkage and open order reservations on the server).
 
 
+| **Method / path** | 
 
-| | |
+|`GET /api/v1/external/products/availability` |
 
-|---|---|
+| **Query (optional)** | `sku_code`  filter by one SKU or several (comma-separated), e.g. `?sku_code=SKU-1` or `?sku_code=SKU-1,SKU-2` |
 
-| **Method | / path** | 
-|   GET |  /api/v1/external/products/availability` |
 
 | **Query (optional)** | 
 `sku_code` filter by one SKU or several (comma-separated), e.g. `?sku_code=SKU-1` or `?sku_code=SKU-1,SKU-2` |
@@ -607,7 +603,11 @@ x-api-key: YOUR_API_KEY
   "sku_code": "SKU-EXAMPLE-001",
   "hsn_code": "7113",
   "tax_slab": "TAX-05",
-  "ppu": 199
+
+  "ppu": 199,
+
+  "product_category_id": "679f98c4eb05c298726ab7cc"
+
 }
 
 ```
@@ -691,10 +691,6 @@ Creates an order using the same handler as `POST /api/v1/createOrder`; only auth
 
 **Authentication:** `Content-Type: application/json` and `x-api-key` (same API key pattern as **Create Product API** above). `POST` to `{base_url}/createOrderExternal` (see `{base_url}` under **Create Product API** above).
 
-
-| Item        | Value |
-
-|------------|--------|
 
 | **Method** | `POST` |
 
@@ -885,6 +881,137 @@ Creates a new product category.
 
 ---
 
+## 9. Update product (external)
+
+This document describes the external partner endpoint for updating an existing product using API key authentication.
+
+### Endpoint
+
+| Item | Value |
+|------|-------|
+| **Method / path** | `POST /api/v1/external/updateProduct/:id` |
+| **Path param** | `id` = MongoDB product `_id` |
+| **Base URL** | Your deployed API host (for example, `https://backend.gudbelly.filflo.in`) |
+| **Authentication** | API key via `x-api-key` / `api-key` / `Authorization` header |
+
+Full URL pattern: `{base_url}/external/updateProduct/<product_id>` with `{base_url}` as in [Code Examples](#code-examples) (`https://.../api/v1`).
+
+### Authentication
+
+The route is protected by `isApiKeyAuthenticated` middleware (same as other external routes).
+
+Accepted API key sources:
+
+1. `x-api-key` header
+2. `api-key` header
+3. `Authorization` header (value compared as-is)
+
+If key is missing or invalid, API returns **401**.
+
+### Request body
+
+#### Required fields
+
+The following fields are required in the request body:
+
+- `product_name` (string)
+- `sku_code` (string, must be unique across other products)
+- `hsn_code` (string, 4 to 8 digits)
+- `tax_slab` (string, one of `TAX-05`, `TAX-12`, `TAX-18`)
+- `ppu` (number, must be `> 0`)
+- `case_size` (number, must be `> 0`)
+
+#### Optional fields
+
+Common optional fields supported by the handler:
+
+- `product_description`
+- `product_category_id`
+- `unit_of_measure` (`kilograms`, `litres`, `units`, `grams`, `millilitres`)
+- `current_stock`
+- `lower_threshold`
+- `upper_threshold` (must be greater than `lower_threshold` when both are provided)
+- `ean_code`
+- `blinkit_sku_code`
+- `swiggy_sku_code`
+- `zepto_sku_code`
+- `amazon_sku_code`
+- `easyecom_sku_code`
+- `asin_code`
+- `image_url`
+- `image_alt_text`
+- `additional_images` (array)
+- `isProductActive` (boolean)
+- `cogs` (number, must be `>= 0`)
+
+### Example request
+
+Windows: use **`curl.exe`** so you invoke real curl.
+
+```bash
+curl.exe -X POST "https://YOUR_HOST/api/v1/external/updateProduct/665f9a4a2e6f8d5d3a12bc34" \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: YOUR_WEBHOOK_API_KEY" \
+  -d '{
+    "product_name": "Tomato Ketchup 500g",
+    "sku_code": "KETCHUP-500G",
+    "hsn_code": "2103",
+    "tax_slab": "TAX-12",
+    "ppu": 145,
+    "case_size": 24,
+    "unit_of_measure": "units",
+    "lower_threshold": 20,
+    "upper_threshold": 200,
+    "image_url": "https://cdn.example.com/products/ketchup-500g.jpg",
+    "isProductActive": true
+  }'
+```
+
+Replace **`YOUR_HOST`** with your API origin. Keys may match **`WEBHOOK_API_KEY`** / server config (same family as other external integrations).
+
+### Success response
+
+**200 OK**
+
+```json
+{
+  "success": true,
+  "message": "Product updated successfully",
+  "data": {
+    "_id": "665f9a4a2e6f8d5d3a12bc34",
+    "product_name": "Tomato Ketchup 500g",
+    "sku_code": "KETCHUP-500G"
+  }
+}
+```
+
+### Error responses
+
+Common error responses from this endpoint:
+
+- **400 Bad Request**
+  - `Missing required fields: ...`
+  - `SKU code "<value>" already exists.`
+  - `Price per unit must be a positive number`
+  - `Case size must be a positive number`
+  - `COGS must be a non-negative number`
+  - `Upper threshold must be greater than lower threshold`
+  - `HSN code must be 4-8 digits`
+  - `Invalid tax slab. Must be one of: TAX-05, TAX-12, TAX-18`
+  - `Invalid unit of measure. Must be one of: kilograms, litres, units, grams, millilitres`
+- **404 Not Found**
+  - `Product not found`
+- **500 Internal Server Error**
+  - `Internal server error`
+
+### Notes
+
+- This external route reuses the same controller logic as the internal `updateProduct` flow.
+- SKU uniqueness is checked excluding the current product being updated.
+- When `sku_reference_id` exists on the product, related SKU metadata is updated as part of this operation.
+
+---
+
 ## Pagination
 Endpoints that return lists support pagination through the following response structure:
 
@@ -942,7 +1069,11 @@ Endpoints that return lists support pagination through the following response st
 
 ## Code Examples
 
-The snippets below share one `base_url`, one API key (`YOUR_API_KEY`), and one HTTP client pattern. They cover the read endpoints **1 to 4**, **Product availability** (`getProductsAvailability` / `get_products_availability`), **Get live tracking by order** (endpoint **5**, `getOrderLiveTracking` / `get_order_live_tracking`), plus **Create Product**, **Create order**, and **Create category** (`POST` to `createNewProductExternal`, `createOrderExternal`, and `createCategoryExternal`; see sections **6**, **7**, and **8** above).
+
+
+The snippets below share one `base_url`, one API key (`YOUR_API_KEY`), and one HTTP client pattern. They cover the read endpoints **1-4**, **Product availability** (`getProductsAvailability` / `get_products_availability`), **Get live tracking by order** (endpoint **5**, `getOrderLiveTracking` / `get_order_live_tracking`), plus **Create Product**, **Create order**, **Create category** (sections **6-8**), and **Update product** (`POST .../external/updateProduct/:id`; section **9**).
+
+
 
 ### JavaScript (Node.js with Axios)
 
@@ -1027,6 +1158,24 @@ async function createOrder(body) {
 async function createCategory(body) {
   const response = await client.post(`${base_url}/createCategoryExternal`, body);
   return response.data;
+}
+
+
+
+// Update product (id = MongoDB product _id)
+
+async function updateProduct(id, body) {
+
+  const response = await client.post(
+
+    `${base_url}/external/updateProduct/${encodeURIComponent(id)}`,
+
+    body
+
+  );
+
+  return response.data;
+
 }
 
 ```
@@ -1133,6 +1282,24 @@ def create_category(body):
     )
     return response.json()
 
+
+
+# Update product (product_id = MongoDB product _id)
+
+def update_product(product_id, body):
+
+    response = requests.post(
+
+        f'{base_url}/external/updateProduct/{quote(product_id, safe="")}',
+
+        headers=headers,
+
+        json=body,
+
+    )
+
+    return response.json()
+
 ```
 
 ### cURL
@@ -1195,11 +1362,23 @@ curl -X POST \
   -H "x-api-key: YOUR_API_KEY" \
   -d "{\"category_name\":\"Pantry - Oils\",\"category_description\":\"Cooking oils\"}" \
   "https://backend.gudbelly.filflo.in/api/v1/createCategoryExternal"
-```
----
-## Rate Limiting
-Please contact GudBelly for information about rate limits applicable to your API key.
----
-## Support
-For API support or to request an API key, please contact GudBelly at your designated support channel.
 
+
+
+# Update product (MongoDB product _id in URL)
+
+curl -X POST \
+
+  -H "Content-Type: application/json" \
+
+  -H "x-api-key: YOUR_API_KEY" \
+
+  -d "{\"product_name\":\"Tomato Ketchup 500g\",\"sku_code\":\"KETCHUP-500G\",\"hsn_code\":\"2103\",\"tax_slab\":\"TAX-12\",\"ppu\":145,\"case_size\":24}" \
+
+  "https://backend.gudbelly.filflo.in/api/v1/external/updateProduct/665f9a4a2e6f8d5d3a12bc34"
+
+```
+
+
+
+---
