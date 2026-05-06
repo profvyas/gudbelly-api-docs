@@ -18,6 +18,7 @@ This guide explains how to integrate with the GudBelly External API to access pr
 | `/createOrderExternal` | POST | ✅ Live |
 | `/createCategoryExternal` | POST | ✅ Live |
 | `/external/updateProduct/:id` | POST | ✅ Live |
+| `/external/updateOrder/:orderId` | POST | ✅ Live |
 
 
 
@@ -1288,6 +1289,8 @@ Creates an order using the same handler as `POST /api/v1/createOrder`; only auth
 
 | `shippingAddress`  | string **or** object | Delivery address. If object: must include `address` (string). Optional: `dropLatitude`, `dropLongitude` (numbers). |
 
+| `currentLocation`  | object | `{ "latitude": number, "longitude": number }` |
+
 | `listOfProducts`   | array  | At least one line item (see below). |
 
 
@@ -1365,8 +1368,6 @@ Each item must identify a product **either** by MongoDB id **or** by SKU:
 | `location`              | string | `Gudbelly Warehouse` |
 
 | `latitude`, `longitude` | number | Sets `currentLocation` when both present |
-
-| `currentLocation`       | object | `{ "latitude": number, "longitude": number }` |
 
 | `meta`                  | object | `{}` |
 
@@ -1681,6 +1682,65 @@ Common error responses from this endpoint:
 
 ---
 
+## 10. Update order (external partner)
+
+This endpoint lets partners update order location and shipping details using API key authentication.
+
+### Endpoint
+
+| Item | Value |
+|------|-------|
+| **Method / path** | `POST /api/v1/external/updateOrder/:orderId` |
+| **Path param** | `orderId` = external or internal order id |
+| **Authentication** | API key via `x-api-key` / `api-key` / `Authorization` header |
+
+### Request body
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `orderId` | string | yes | Must match the target order id |
+| `currentLocation` | object | conditional | Required when missing in both DB and payload |
+| `shippingAddress` | object | conditional | Required when missing in both DB and payload |
+
+`currentLocation` format:
+
+```json
+{ "latitude": 12.9716, "longitude": 77.5946 }
+```
+
+`shippingAddress` format:
+
+```json
+{
+  "address": "MG Road, Bengaluru",
+  "dropLatitude": 12.975,
+  "dropLongitude": 77.605
+}
+```
+
+### Example request
+
+```json
+{
+  "orderId": "GUD-ORD-0001",
+  "currentLocation": { "latitude": 12.9716, "longitude": 77.5946 },
+  "shippingAddress": {
+    "address": "MG Road, Bengaluru",
+    "dropLatitude": 12.975,
+    "dropLongitude": 77.605
+  }
+}
+```
+
+### Validation
+
+- `orderId` is required.
+- If `currentLocation` is missing in both DB and payload, the API returns an error.
+- If `shippingAddress` is missing in both DB and payload, the API returns an error.
+- Final `currentLocation.latitude` / `currentLocation.longitude` and `shippingAddress.dropLatitude` / `shippingAddress.dropLongitude` must be valid numbers.
+
+---
+
 ## Pagination
 
 
@@ -1779,7 +1839,7 @@ Endpoints that return lists support pagination through the following response st
 
 
 
-The snippets below share one `base_url`, one API key (`YOUR_API_KEY`), and one HTTP client pattern. They cover the read endpoints **1-4**, **Product availability** (`getProductsAvailability` / `get_products_availability`), **Get live tracking by order** (endpoint **5**, `getOrderLiveTracking` / `get_order_live_tracking`), plus **Create Product**, **Create order**, **Create category** (sections **6-8**), and **Update product** (`POST .../external/updateProduct/:id`; section **9**).
+The snippets below share one `base_url`, one API key (`YOUR_API_KEY`), and one HTTP client pattern. They cover the read endpoints **1-4**, **Product availability** (`getProductsAvailability` / `get_products_availability`), **Get live tracking by order** (endpoint **5**, `getOrderLiveTracking` / `get_order_live_tracking`), plus **Create Product**, **Create order**, **Create category** (sections **6-8**), **Update product** (`POST .../external/updateProduct/:id`; section **9**), and **Update order** (`POST .../external/updateOrder/:orderId`; section **10**).
 
 
 
